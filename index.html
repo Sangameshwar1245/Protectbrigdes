@@ -443,10 +443,11 @@ document.addEventListener('touchstart', primeAudio, {once:true, passive:true});
 document.addEventListener('click', primeAudio, {once:true});
 
 /* ═══ GOOGLE MAPS INIT ═══ */
-async function initMap() {
-  const { Map } = await google.maps.importLibrary("maps");
-  const { Autocomplete } = await google.maps.importLibrary("places");
-  const { DirectionsService } = await google.maps.importLibrary("routes");
+function initMap() {
+  // Libraries already loaded via script tag — just destructure
+  const { Map } = google.maps;
+  const Autocomplete = google.maps.places.Autocomplete;
+  const DirectionsService = google.maps.DirectionsService;
 
   gmap = new Map(document.getElementById('map'), {
     center: {lat: 47.5, lng: -120.5},
@@ -476,24 +477,39 @@ async function initMap() {
     ]
   });
 
-  directionsService = new DirectionsService();
+  directionsService = new google.maps.DirectionsService();
 
   /* Ensure correct initial UI state */
   document.getElementById('destSection').style.display = 'block';
   document.getElementById('liveSection').style.display = 'none';
 
   /* Google Places Autocomplete */
-  autocomplete = new Autocomplete(
+  autocomplete = new google.maps.places.Autocomplete(
     document.getElementById('pac-input'), {
       componentRestrictions: {country: 'us'},
       fields: ['geometry', 'name', 'formatted_address']
     }
   );
   /* Hide loading spinner once map is ready */
-  google.maps.event.addListenerOnce(gmap, 'tilesloaded', function() {
+  function hideLoader() {
     var loader = document.getElementById('mapLoading');
     if (loader) loader.style.display = 'none';
-  });
+  }
+  google.maps.event.addListenerOnce(gmap, 'tilesloaded', hideLoader);
+  google.maps.event.addListenerOnce(gmap, 'idle', hideLoader);
+  setTimeout(hideLoader, 3000); // fallback — hide after 3s regardless
+  setTimeout(function() {
+    var loader = document.getElementById('mapLoading');
+    if (loader && loader.style.display !== 'none') {
+      loader.innerHTML = '<div style="color:#ff9100;font-family:Rajdhani,sans-serif;font-size:15px;text-align:center;padding:20px">' +
+        '&#x26A0; Map failed to load.<br><br>' +
+        'Check that:<br>1. Maps JavaScript API is enabled<br>' +
+        '2. API key has this domain whitelisted<br><br>' +
+        '<button onclick="location.reload()" style="background:#00c8ff;color:#000;border:none;' +
+        'padding:10px 20px;border-radius:6px;font-size:14px;cursor:pointer">RETRY</button></div>';
+      loader.style.background = '#07090f';
+    }
+  }, 8000); // show error after 8s if still loading
 
   autocomplete.addListener('place_changed', function() {
     var place = autocomplete.getPlace();
@@ -1209,7 +1225,6 @@ function updateDist() {
 </script>
 
 <script>
-window.initMap = initMap; // expose for loader
 function gm_authFailure() {
   document.getElementById('map').innerHTML = 
     '<div style="display:flex;align-items:center;justify-content:center;height:100%;'+
@@ -1218,9 +1233,8 @@ function gm_authFailure() {
     'Open F12 Console for details.</div>';
 }
 </script>
-<script>
-(g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})
-({key: "AIzaSyByn9WxmfppI3pzXKlWz6PAuGgcx4DftUs", v: "weekly"});
-</script>
+<script
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyByn9WxmfppI3pzXKlWz6PAuGgcx4DftUs&libraries=places,routes&callback=initMap&loading=async"
+  async defer></script>
 </body>
 </html>
